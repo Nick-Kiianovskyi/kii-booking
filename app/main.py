@@ -1,9 +1,9 @@
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI, Depends,HTTPException
 from sqlalchemy.orm import Session 
 
 from app.db.database import SessionLocal, engine, Base 
 from app.models.booking import Booking
-from app.shemas.booking import BookingCreate
+from app.shemas.booking import BookingCreate, BookingResponse
 
 Base.metadata.create_all(bind=engine)
 
@@ -28,13 +28,25 @@ def health():
 
 @app.post("/bookings") 
 
+##################
+#  CREATE BOOKING 
+#####################
+
 def create_booking( 
   booking: BookingCreate, 
 
   db: Session = Depends(get_db) 
 
 ): 
+  existing_booking = db.query(Booking).filter( 
+    Booking.date == booking.date, 
+    Booking.start_time < booking.end_time, 
+    Booking.end_time > booking.start_time 
+  ).first()
  
+  if existing_booking:
+      raise HTTPException(status_code=400, detail="Time slot is already booked for the selected date.")
+
   new_booking = Booking( 
 
  client_name=booking.client_name, 
@@ -57,7 +69,7 @@ def create_booking(
 
   db.refresh(new_booking) 
 
- 
+
 
   return { 
 
@@ -66,3 +78,11 @@ def create_booking(
  "id": new_booking.id 
 
  } 
+
+@app.get("/bookings", response_model=list[BookingResponse]) 
+
+def get_bookings(db: Session = Depends(get_db)): 
+
+  bookings = db.query(Booking).all() 
+
+  return bookings 
