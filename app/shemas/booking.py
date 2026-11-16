@@ -1,35 +1,36 @@
-from datetime import date, time 
-
- 
-
-from pydantic import BaseModel 
+from datetime import date, time
 
 
-class BookingCreate(BaseModel): 
-
-    client_name: str 
-
-    phone: str 
-
-    service: str 
-
-    date: date 
-
-    start_time: time 
-
-    end_time: time 
-
-class BookingResponse(BaseModel): 
-
- id: int 
- client_name: str 
- phone: str 
- service: str 
- date: date 
- start_time: time 
- end_time: time 
+from pydantic import BaseModel
 
 
-class Config: 
+class BookingCreate(BaseModel):
+    business_id: int
 
- from_attributes = True 
+    client_name: str
+
+    phone: str
+
+    service: str
+
+    date: date
+
+    start_time: time
+
+    end_time: time
+
+
+class BookingResponse(BaseModel):
+
+    id: int
+    client_name: str
+    phone: str
+    service: str
+    date: date
+    start_time: time
+    end_time: time
+
+
+class Config:
+
+    from_attributes = True
