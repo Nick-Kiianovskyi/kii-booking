@@ -1,14 +1,19 @@
 from fastapi import FastAPI, Depends, HTTPException
 from sqlalchemy.orm import Session
+from datetime import datetime
 import requests
 
 from app.db.database import SessionLocal, engine, Base
+from app.models import booking
 from app.models.booking import Booking
 from app.shemas import business
 from app.shemas.booking import BookingCreate, BookingResponse
 from app.models.business import Business
 from app.shemas.business import BusinessCreate, BusinessResponse
 from app.services.google_calendar import get_google_auth_url
+from app.services.google_calendar import refresh_google_token
+from app.models.business_schedule import BusinessSchedule
+from app.shemas.business_schedule import ScheduleItem, ScheduleResponse
 
 from app.core.config import GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REDIRECT_URI
 
@@ -81,8 +86,47 @@ def create_booking(booking: BookingCreate, db: Session = Depends(get_db)):
     db.commit()
 
     db.refresh(new_booking)
+    if business.google_connected and business.google_access_token:
+        event = {
+            "summary": f"{booking.service} - {booking.client_name}",
+            "description": f"Phone: {booking.phone}",
+            "start": {
+                "dateTime": f"{booking.date}T{booking.start_time}",
+                "timeZone": "Europe/Kyiv",
+            },
+            "end": {
+                "dateTime": f"{booking.date}T{booking.end_time}",
+                "timeZone": "Europe/Kyiv",
+            },
+        }
+        response = requests.post(
+            "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+            headers={
+                "Authorization": f"Bearer {business.google_access_token}",
+                "Content-Type": "application/json",
+            },
+            json=event,
+        )
+        if response.status_code == 401:
+            new_token = refresh_google_token(business.id)
+            response = requests.post(
+                "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+                headers={
+                    "Authorization": f"Bearer {new_token}",
+                    "Content-Type": "application/json",
+                },
+                json=event,
+            )
+        event_response = response.json()
 
-    return {"message": "Booking created", "id": new_booking.id}
+        if "id" in event_response:
+
+            new_booking.google_event_id = event_response["id"]
+
+        db.commit()
+
+        return {"message": "Booking created", "id": new_booking.id}
+        return {"message": "Booking created", "id": new_booking.id}
 
 
 @app.get("/bookings", response_model=list[BookingResponse])
@@ -123,6 +167,7 @@ def register_business(business: BusinessCreate, db: Session = Depends(get_db)):
     db.commit()
 
     db.refresh(new_business)
+
     return new_business
 
 
@@ -183,8 +228,8 @@ def google_test_event(business_id: int):
     event = {
         "summary": "KII Booking Test",
         "description": "First test event",
-        "start": {"dateTime": "2026-11-17T10:00:00", "timeZone": "Europe/Kiev"},
-        "end": {"dateTime": "2026-11-17T11:00:00", "timeZone": "Europe/Kiev"},
+        "start": {"dateTime": "2026-11-17T10:00:00", "timeZone": "Europe/Kyiv"},
+        "end": {"dateTime": "2026-11-17T11:00:00", "timeZone": "Europe/Kyiv"},
     }
     print("BUSINESS =", business_id)
     print("GOOGLE ACCESS TOKEN =", business.google_access_token[:20])
@@ -198,3 +243,93 @@ def google_test_event(business_id: int):
     )
 
     return response.json()
+
+
+#########
+# AVAILABILITY CHECK
+#########
+@app.get("/availability/{business_id}")
+def get_availability(business_id: int, date: str):
+    db = SessionLocal()
+    business = db.query(Business).filter(Business.id == business_id).first()
+
+    if not business:
+        return {"error": "Business not found"}
+
+    bookings = db.query(Booking).filter(Booking.business_id == business_id).first()
+
+    if not business:
+        return {"error": "Business not found"}
+
+    if not business.google_access_token:
+
+        return {"error": "Google Calendar not connected"}
+
+    start_of_day = f"{date}T00:00:00Z"
+    end_of_day = f"{date}T23:59:59Z"
+
+    params = {
+        "timeMin": start_of_day,
+        "timeMax": end_of_day,
+        "singleEvents": True,
+        "orderBy": "startTime",
+    }
+    url = "https://www.googleapis.com/calendar/v3/calendars/primary/events"
+
+    response = requests.get(
+        url,
+        headers={"Authorization": f"Bearer {business.google_access_token}"},
+        params=params,
+    )
+
+    if response.status_code == 401:
+        new_token = refresh_google_token(business.id)
+        if not new_token:
+            return {"error": "Unable to refresh Google token"}
+
+        response = requests.get(
+            url,
+            headers={"Authorization": f"Bearer {new_token}"},
+            params=params,
+        )
+
+    data = response.json()
+    print("GOOGLE CALENDAR RESPONSE =", data)
+    print("GOOGLE CALENDAR DATA =", data)
+    busy_slots = []
+
+    for event in data.get("items", []):
+        start = event.get("start", {}).get("dateTime")
+        end = event.get("end", {}).get("dateTime")
+        if start and end:
+            start_time = datetime.fromisoformat(start.replace("Z", "+00:00")).strftime(
+                "%H:%M"
+            )
+            end_time = datetime.fromisoformat(end.replace("Z", "+00:00")).strftime(
+                "%H:%M"
+            )
+            busy_slots.append(
+                {
+                    "start": start_time,
+                    "end": end_time,
+                    "summary": event.get("summary", ""),
+                }
+            )
+
+    return {"business_id": business_id, "date": date, "busy": busy_slots}
+
+
+######
+# GET BUSINESS SCHEDULE
+####
+@app.get("/business/{business_id}/schedule", response_model=list[ScheduleResponse])
+def get_business_schedule(business_id: int, db: Session = Depends(get_db)):
+
+    schedule = (
+        db.query(BusinessSchedule)
+        .filter(BusinessSchedule.business_id == business_id)
+        .order_by(BusinessSchedule.weekday)
+        .all()
+    )
+
+    return schedule

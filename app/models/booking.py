@@ -32,3 +32,7 @@ class Booking(Base):
     start_time = Column(Time, nullable=False)
 
     end_time = Column(Time, nullable=False)
+
+    google_event_id = Column(
+        String, nullable=True
+    )  # Store the Google Calendar event ID

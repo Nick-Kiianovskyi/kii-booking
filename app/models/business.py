@@ -1,5 +1,6 @@
 from sqlalchemy import Boolean, Column, Integer, String
 from app.db.database import Base
+from sqlalchemy.orm import relationship
 
 
 class Business(Base):
@@ -16,3 +17,6 @@ class Business(Base):
     google_calendar_id = Column(String, nullable=True)
     google_access_token = Column(String, nullable=True)
     google_refresh_token = Column(String, nullable=True)
+    schedules = relationship(
+        "BusinessSchedule", back_populates="business", cascade="all, delete-orphan"
+    )
