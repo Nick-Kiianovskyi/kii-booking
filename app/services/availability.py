@@ -99,5 +99,29 @@ def exclude_busy_slots(
     return available
 
 
+def exclude_past_slots(
+    slots: list[time],
+    day: date,
+    now: datetime | None = None,
+    timezone: ZoneInfo = KYIV_TIMEZONE,
+) -> list[time]:
+    """Drop slots that have already started in the business timezone.
+
+    Only the current business day is filtered. Future days keep every slot;
+    past days return none. At 11:23 the 11:00 slot is gone while 11:30 stays.
+    """
+    current = now if now is not None else datetime.now(timezone)
+    if current.tzinfo is None:
+        current = current.replace(tzinfo=timezone)
+    current = current.astimezone(timezone)
+
+    if day < current.date():
+        return []
+    if day > current.date():
+        return list(slots)
+
+    return [slot for slot in slots if slot > current.time()]
+
+
 def format_slots(slots: list[time]) -> list[str]:
     return [slot.strftime("%H:%M") for slot in slots]

@@ -152,12 +152,25 @@ frontend/
 
 ---
 
+## 7. Пост-проверка в браузере и UX-фиксы (25.11.2026)
+
+| # | Изменение | Проверка | Результат |
+|---|---|---|---|
+| 1 | В Google Console для client `406404675636-...apps.googleusercontent.com` добавлен `http://localhost:5173/oauth/callback` в **Authorized redirect URIs**; старый backend callback оставлен как дополнительный | Реальный поток в браузере: `/dashboard` → `/google` → consent Google → `/oauth/callback` → `/dashboard`, бейдж `Connected` | PASS |
+| 2 | `Save Schedule` после успешного `PUT /business/{id}/schedule` делает `navigate('/dashboard', { replace: true })` | `npm test`: сценарий `schedule PUT -> GET` ожидает `/dashboard` | PASS |
+| 3 | Добавлен `exclude_past_slots()` в `app/services/availability.py`: фильтруется только текущий день в `Europe/Kyiv`; будущие дни сохраняют все слоты, прошедшие дни возвращают пустой список | `now=2026-11-25 11:23 Kyiv`: сегодня `[08:00, 11:00, 11:30, 18:00]` → `['11:30', '18:00']`; завтра → все 4 слота | PASS |
+
+Фильтрация прошедших слотов сделана на backend, поэтому она защищает и `GET /availability/{business_id}`, и повторную проверку доступности при `POST /bookings`. frontend показывает только то, что вернул API.
+
+---
+
 ## WORK LOG
 
 ### Files modified
 
-**Backend:** `app\shemas\business.py`, `app\main.py`, `.gitignore`.
+**Backend:** `app\shemas\business.py`, `app\main.py`, `app\services\availability.py`, `.gitignore`.
 **Frontend (new):** `frontend\package.json`, `frontend\index.html`, `frontend\vite.config.ts`, `frontend\tsconfig.json`, `frontend\postcss.config.js`, `frontend\tailwind.config.js`, `frontend\components.json`, `frontend\.env.example`, `frontend\README.md`, `frontend\src\*` (25+ source files, 5 test files).
+**Frontend (modified in post-check):** `frontend\src\features\schedule\SchedulePage.tsx`, `frontend\src\integration.test.tsx`.
 **Docs (new):** `app\docs\frontend_mobile_first_implementation.md`.
 
 ### New endpoints
@@ -170,4 +183,4 @@ frontend/
 
 ### Verification results
 
-`npm run build` — PASS; `npm test` — 14/14 PASS; backend slot_minutes — 6/6 PASS; Phase C CORS/errors/OpenAPI — 10/10 PASS. Временные проверочные БД и скрипты удалены. Реальный браузер и внешние OAuth/Google-вызовы не использовались.
+`npm run build` — PASS; `npm test` — 15/15 PASS; backend `compileall` + import — PASS; `exclude_past_slots` (сегодня / завтра / вчера) — PASS; slot_minutes — 6/6 PASS; Phase C CORS/errors/OpenAPI — 10/10 PASS. Реальный OAuth-прогон в браузере — PASS после регистрации SPA redirect URI в Google Console. Временные проверочные БД и скрипты удалены.

@@ -42,6 +42,11 @@ The backend must allow this origin via `CORS_ALLOWED_ORIGINS`
 | `/book/:slug/success/:bookingId` | Success screen |
 | `/:slug` | Redirect to `/book/:slug` |
 
+Successful **Save Schedule** returns to `/dashboard`. Availability never includes
+slots that have already started **today** — the backend filters only the current
+day in `Europe/Kyiv`, so future days keep all slots and both `/book/:slug` and
+`POST /bookings` stay consistent.
+
 ## Google OAuth configuration
 
 The backend redirect URI must point to the SPA callback so the browser returns

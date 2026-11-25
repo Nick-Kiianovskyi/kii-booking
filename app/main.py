@@ -26,6 +26,7 @@ from app.services.google_calendar import get_google_auth_url
 from app.services.google_calendar import google_api_request, delete_google_event
 from app.services.availability import (
     exclude_busy_slots,
+    exclude_past_slots,
     format_slots,
     generate_time_slots,
     parse_busy_events,
@@ -232,7 +233,8 @@ def _load_available_slots(
         raise HTTPException(status_code=502, detail="Unable to read Google Calendar")
 
     busy = parse_busy_events(response.json().get("items", []), day)
-    return exclude_busy_slots(slots, busy, slot_minutes), slot_minutes
+    available = exclude_busy_slots(slots, busy, slot_minutes)
+    return exclude_past_slots(available, day), slot_minutes
 
 
 @app.get("/", tags=["system"])

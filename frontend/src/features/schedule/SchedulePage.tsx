@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Check, RefreshCw } from 'lucide-react'
+import { RefreshCw } from 'lucide-react'
 import { Alert } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -43,9 +44,9 @@ export function SchedulePage() {
   const businessId = me.data?.id
   const schedule = useSchedule(businessId)
   const queryClient = useQueryClient()
+  const navigate = useNavigate()
   const [days, setDays] = useState<ScheduleItem[]>(defaultDays)
   const [slotMinutes, setSlotMinutes] = useState(30)
-  const [saved, setSaved] = useState(false)
 
   useEffect(() => {
     if (!schedule.data) return
@@ -59,8 +60,7 @@ export function SchedulePage() {
       api.put<ScheduleResponse[]>(`/business/${businessId}/schedule`, payload),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['schedule', businessId] })
-      setSaved(true)
-      window.setTimeout(() => setSaved(false), 4000)
+      navigate('/dashboard', { replace: true })
     },
   })
 
@@ -108,11 +108,6 @@ export function SchedulePage() {
       </div>
 
       {save.isError && <Alert tone="error">{friendlyMessage(save.error)}</Alert>}
-      {saved && (
-        <Alert tone="success">
-          <Check className="h-4 w-4" aria-hidden="true" /> Schedule saved.
-        </Alert>
-      )}
 
       <Card>
         <Label htmlFor="slot-minutes">Slot duration</Label>

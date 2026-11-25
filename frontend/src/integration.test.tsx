@@ -73,12 +73,22 @@ describe('integration flows', () => {
     renderApp(
       <Routes>
         <Route path="/schedule" element={<ScheduleHarness />} />
+        <Route
+          path="/dashboard"
+          element={
+            <>
+              <div>Dashboard screen</div>
+              <LocationProbe />
+            </>
+          }
+        />
       </Routes>,
       { route: '/schedule', token: 'jwt' },
     )
 
     await user.click(await screen.findByRole('button', { name: 'Save Schedule' }))
-    expect(await screen.findByText(/Schedule saved/)).toBeInTheDocument()
+    expect(await screen.findByText('Dashboard screen')).toBeInTheDocument()
+    expect(screen.getByTestId('location').textContent).toBe('/dashboard')
 
     const putCall = fetchMock.mock.calls.find((call) => call[1]?.method === 'PUT')
     expect(putCall).toBeDefined()
