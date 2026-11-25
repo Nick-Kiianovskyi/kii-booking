@@ -8,6 +8,8 @@ from sqlalchemy import Date
 
 from sqlalchemy import Time
 from sqlalchemy import ForeignKey
+from sqlalchemy import Index
+from sqlalchemy import UniqueConstraint
 
 
 from app.db.database import Base
@@ -16,6 +18,19 @@ from app.db.database import Base
 class Booking(Base):
 
     __tablename__ = "bookings"
+
+    __table_args__ = (
+        Index("ix_bookings_business_id_date", "business_id", "date"),
+        Index(
+            "ix_bookings_business_id_date_start_time",
+            "business_id",
+            "date",
+            "start_time",
+        ),
+        UniqueConstraint(
+            "business_id", "date", "start_time", name="uq_bookings_business_date_start"
+        ),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
 

@@ -4,6 +4,7 @@ from sqlalchemy import (
     ForeignKey,
     Boolean,
     Time,
+    UniqueConstraint,
 )
 from sqlalchemy.orm import relationship
 from app.db.database import Base
@@ -12,6 +13,12 @@ from app.db.database import Base
 class BusinessSchedule(Base):
 
     __tablename__ = "business_schedules"
+
+    __table_args__ = (
+        UniqueConstraint(
+            "business_id", "weekday", name="uq_business_schedules_business_weekday"
+        ),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
     business_id = Column(
