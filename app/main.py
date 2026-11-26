@@ -237,11 +237,6 @@ def _load_available_slots(
     return exclude_past_slots(available, day), slot_minutes
 
 
-@app.get("/", tags=["system"])
-def root():
-    return {"message": "KII Booking API"}
-
-
 @app.get("/health", tags=["system"])
 def health():
     return {"status": "ok"}
