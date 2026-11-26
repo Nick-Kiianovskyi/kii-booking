@@ -485,9 +485,7 @@ def google_callback(
     }
 
     try:
-        response = requests.post(
-            token_url, data=data, timeout=GOOGLE_REQUEST_TIMEOUT
-        )
+        response = requests.post(token_url, data=data, timeout=GOOGLE_REQUEST_TIMEOUT)
     except requests.RequestException as exc:
         logger.exception("Google token exchange request failed")
         raise HTTPException(
@@ -500,7 +498,9 @@ def google_callback(
         logger.error(
             "Google token exchange returned non-JSON: status=%s", response.status_code
         )
-        raise HTTPException(status_code=502, detail="Invalid response from Google") from exc
+        raise HTTPException(
+            status_code=502, detail="Invalid response from Google"
+        ) from exc
 
     if response.status_code != 200:
         if isinstance(token_response, dict):
@@ -677,7 +677,9 @@ def get_business_by_slug(slug: str, db: Session = Depends(get_db)):
 ###################
 
 
-@app.get("/business/{business_id}", response_model=BusinessResponse, tags=["businesses"])
+@app.get(
+    "/business/{business_id}", response_model=BusinessResponse, tags=["businesses"]
+)
 def get_business(
     business_id: int,
     current_business: Business = Depends(get_owned_business),
@@ -727,3 +729,6 @@ def delete_booking(
     db.delete(booking)
     db.commit()
     return {"message": "Booking deleted"}
+
+
+app.frontend("/", directory="frontend/dist", fallback="index.html")
